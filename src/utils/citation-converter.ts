@@ -19,6 +19,34 @@ interface Citation {
   type?: string
 }
 
+interface CrossRefAuthor {
+  given?: string;
+  family?: string;
+  // Add other relevant fields if known
+}
+
+interface CrossRefMessage {
+  author?: CrossRefAuthor[];
+  title?: string[];
+  "container-title"?: string[];
+  volume?: string;
+  issue?: string;
+  page?: string;
+  published?: {
+    "date-parts"?: [[number, number?, number?]];
+  };
+  publisher?: string;
+  DOI?: string; // DOI is usually part of the message or item, ensure field name is correct
+  URL?: string;
+  type?: string;
+  // Add other relevant fields from the CrossRef API response
+}
+
+interface CrossRefResponse {
+  message: CrossRefMessage;
+  // Add other fields like status if needed
+}
+
 // Detect citation format based on input text
 export function detectCitationFormat(text: string): string | null {
   text = text.trim()
@@ -30,13 +58,15 @@ export function detectCitationFormat(text: string): string | null {
 
   // Check if it's APA format
   // APA typically has author, year in parentheses, title, and source
-  if (/^.+$$\d{4}$$\.\s.+\..+,\s\d+($$\d+$$)?,\s\d+(-|–)\d+\./.test(text)) {
+  // Updated to handle Volume(Issue) without space, e.g., 587(7832)
+  if (/^.+ \(\d{4}\)\.\s.+\..+,\s\d+(?:\(\d+\))?,\s\d+(-|–)\d+\./.test(text)) {
     return "apa"
   }
 
   // Check if it's MLA format
   // MLA typically has author, title in quotes, source in italics, and publication details
-  if (/^.+\.\s".+"\s.+,\svol\.\s\d+,\sno\.\s\d+,\s\d{4},\spp\.\s\d+(-|–)\d+\./.test(text)) {
+  // Updated to make vol. and no. optional and anchor to end of string.
+  if (/^.+\.\s".+"\s(.+?)(?:,\svol\.\s\d+)?(?:,\sno\.\s\d+)?(?:,\s\d{4})?,\spp\.\s\d+(-|–)\d+\.$/.test(text)) {
     return "mla"
   }
 
@@ -46,29 +76,38 @@ export function detectCitationFormat(text: string): string | null {
 
 // Add a new function to split multiple citations
 export function splitMultipleCitations(text: string): string[] {
-  // First, normalize line endings
-  const normalizedText = text.replace(/\r\n/g, "\n")
+  const normalizedText = text.replace(/\r\n/g, "\n");
+  const lines = normalizedText.split(/\n+/).filter((line) => line.trim().length > 0);
 
-  // Split by new lines first
-  let citations = normalizedText.split(/\n+/).filter((line) => line.trim().length > 0)
+  const finalCitations: string[] = [];
 
-  // If we only have one line, try splitting by commas (but be careful with APA citations that contain commas)
-  if (citations.length === 1) {
-    // For DOIs, we can safely split by commas
-    if (detectCitationFormat(citations[0]) === "doi") {
-      citations = citations[0].split(/,\s*/).filter((item) => item.trim().length > 0)
+  for (const line of lines) {
+    // Trim the line initially before attempting any splits
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
+
+    // Attempt to split by comma if it looks like a list of DOIs.
+    // A DOI typically starts with "10."
+    // Regex: split by comma, but only if the comma is (optionally) followed by whitespace and then "10."
+    const doiSpecificCommaSplit = trimmedLine.split(/,(?=\s*10\.)/);
+
+    let partsAreAllDOIs = false;
+    if (doiSpecificCommaSplit.length > 1) {
+      partsAreAllDOIs = doiSpecificCommaSplit.every(part =>
+        detectCitationFormat(part.trim()) === "doi"
+      );
+    }
+
+    if (partsAreAllDOIs) {
+      // If all parts of the comma-split line are DOIs, add them individually after trimming
+      finalCitations.push(...doiSpecificCommaSplit.map(part => part.trim()));
     } else {
-      // For other formats, we need to be more careful
-      // This is a simplified approach - for APA/MLA we'd need more sophisticated parsing
-      // Try to detect if the line contains multiple citations
-      const potentialCitations = citations[0].split(/,\s*(?=\d{4}\.\s|$$\d{4}$$|[A-Z][a-z]+,\s[A-Z]\.)/)
-      if (potentialCitations.length > 1) {
-        citations = potentialCitations.filter((item) => item.trim().length > 0)
-      }
+      // Otherwise, treat the original trimmed line as a single citation.
+      // This will handle APA/MLA, single DOIs, or lines that couldn't be confidently split as multiple DOIs.
+      finalCitations.push(trimmedLine);
     }
   }
-
-  return citations
+  return finalCitations;
 }
 
 // Add a new function to batch convert citations
@@ -88,7 +127,7 @@ export async function batchConvertCitations(input: string): Promise<{ results: s
         try {
           const result = await convertCitation(trimmedCitation, format)
           results.push(result)
-        } catch (error) {
+        } catch {
           results.push(`Error converting citation: ${trimmedCitation.substring(0, 50)}...`)
         }
       } else {
@@ -112,20 +151,27 @@ export async function fetchDOIMetadata(doi: string): Promise<Citation | null> {
     })
 
     if (!response.ok) {
-      throw new Error(`CrossRef API error: ${response.status} ${response.statusText}`)
+      // It's good practice to try and read the error response body if available
+      let errorBody = "";
+      try {
+        errorBody = await response.text();
+      } catch {
+        /* Ignore if can't read body */
+      }
+      throw new Error(`CrossRef API error: ${response.status} ${response.statusText}. Body: ${errorBody}`);
     }
 
-    const data = await response.json()
-    const item = data.message
+    const data = (await response.json()) as CrossRefResponse; // Cast to the defined type
+    const item = data.message;
 
     if (!item) {
       throw new Error("No metadata found for this DOI")
     }
 
     // Parse authors
-    const authors: Author[] = (item.author || []).map((author: any) => {
-      const given = author.given || ""
-      const family = author.family || ""
+    const authors: Author[] = (item.author || []).map((author: CrossRefAuthor) => {
+      const given = author.given || "";
+      const family = author.family || "";
 
       // Extract initials from given name
       const initials = given
@@ -181,9 +227,9 @@ export async function fetchDOIMetadata(doi: string): Promise<Citation | null> {
       url: item.URL,
       type,
     }
-  } catch (error) {
-    console.error("Error fetching DOI metadata:", error)
-    return null
+  } catch (err) {
+    console.error("Error fetching DOI metadata:", err);
+    return null;
   }
 }
 

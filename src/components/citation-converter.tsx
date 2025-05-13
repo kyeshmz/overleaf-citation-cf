@@ -129,21 +129,23 @@ export default function CitationConverter() {
       setIsConverted(true)
       clearInterval(stepInterval)
 
-      // Add to history - store the first detected format or "multiple"
-      const historyFormat = formats.length > 1 ? "multiple" : formats[0] || inputFormat
+      // Add to history only if conversion was successful and produced output
+      if (combinedResult && !combinedResult.toLowerCase().startsWith("error")) {
+        const historyFormat = formats.length > 1 ? "multiple" : formats[0] || inputFormat
 
-      const newHistoryItem: ConversionHistoryItem = {
-        id: Date.now().toString(),
-        input: inputText,
-        output: combinedResult,
-        format: historyFormat,
-        timestamp: Date.now(),
+        const newHistoryItem: ConversionHistoryItem = {
+          id: Date.now().toString(),
+          input: inputText,
+          output: combinedResult,
+          format: historyFormat,
+          timestamp: Date.now(),
+        }
+
+        setHistory((prev) => {
+          const updatedHistory = [newHistoryItem, ...prev.slice(0, 49)] // Keep up to 50 items
+          return updatedHistory
+        })
       }
-
-      setHistory((prev) => {
-        const updatedHistory = [newHistoryItem, ...prev.slice(0, 19)]
-        return updatedHistory
-      })
     } catch (error) {
       console.error("Conversion error:", error)
       setOutputText(`Error during conversion: ${error instanceof Error ? error.message : "Unknown error"}`)
@@ -308,7 +310,7 @@ export default function CitationConverter() {
                       <li>Paste your citation(s) in the text box</li>
                       <li>For multiple citations, separate them with new lines or commas (for DOIs)</li>
                       <li>The format will be automatically detected</li>
-                      <li>Click "Convert" to generate BibTeX</li>
+                      <li>Click &quot;Convert&quot; to generate BibTeX</li>
                       <li>Copy or download the result</li>
                     </ol>
                     <div className="mt-2 pt-2 border-t text-xs">
@@ -342,7 +344,7 @@ export default function CitationConverter() {
                     setInputText(e.target.value)
                     setIsConverted(false)
                   }}
-                  className="min-h-[100px] resize-none"
+                  className="min-h-[100px] resize-none pr-28 md:pr-32"
                 />
                 <div className="absolute top-2 right-2 flex items-center gap-2">
                   {detectedFormat && (
@@ -378,7 +380,7 @@ export default function CitationConverter() {
                     setInputText(e.target.value)
                     setIsConverted(false)
                   }}
-                  className="min-h-[100px] resize-none"
+                  className="min-h-[100px] resize-none pr-28 md:pr-32"
                 />
                 <div className="absolute top-2 right-2 flex items-center gap-2">
                   {detectedFormat && (
@@ -414,7 +416,7 @@ export default function CitationConverter() {
                     setInputText(e.target.value)
                     setIsConverted(false)
                   }}
-                  className="min-h-[100px] resize-none"
+                  className="min-h-[100px] resize-none pr-28 md:pr-32"
                 />
                 <div className="absolute top-2 right-2 flex items-center gap-2">
                   {detectedFormat && (
