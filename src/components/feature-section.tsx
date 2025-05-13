@@ -16,15 +16,7 @@ export default function FeatureSection() {
               <CardDescription>Paste your citation in DOI, APA, MLA, or other formats</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="relative h-40 w-full rounded-md overflow-hidden border">
-                <Image
-                  src="/placeholder.svg?height=160&width=320"
-                  alt="Paste citation"
-                  width={320}
-                  height={160}
-                  className="object-cover"
-                />
-              </div>
+             
             </CardContent>
           </Card>
 
@@ -35,15 +27,7 @@ export default function FeatureSection() {
               <CardDescription>Our tool instantly converts your citation to BibTeX format</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="relative h-40 w-full rounded-md overflow-hidden border">
-                <Image
-                  src="/placeholder.svg?height=160&width=320"
-                  alt="Convert citation"
-                  width={320}
-                  height={160}
-                  className="object-cover"
-                />
-              </div>
+             
             </CardContent>
           </Card>
 
@@ -54,15 +38,7 @@ export default function FeatureSection() {
               <CardDescription>Copy the BibTeX and paste it into your Overleaf project</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="relative h-40 w-full rounded-md overflow-hidden border">
-                <Image
-                  src="/placeholder.svg?height=160&width=320"
-                  alt="Copy to Overleaf"
-                  width={320}
-                  height={160}
-                  className="object-cover"
-                />
-              </div>
+            
             </CardContent>
           </Card>
         </div>

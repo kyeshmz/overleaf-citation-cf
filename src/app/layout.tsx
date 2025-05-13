@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "CiteToTeX - Citation to LaTeX Converter",
   description: "Convert citations from DOI, APA, MLA, and more to LaTeX format for your Overleaf projects in seconds.",
-    generator: 'v0.dev'
+  
 }
 
 export default function RootLayout({
